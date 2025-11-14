@@ -291,21 +291,24 @@ class Sender:
         """快速重传最老的未确认的段"""
 
         if not self.send_buffer:
+            # 缓冲区内没有数据了
             return
 
         # 找到最老的未确认段
-        oldest_seq = min(
+        oldest_seq_num = min(
             self.send_buffer.keys(), key=lambda x: self._seq_distance(x, self.base)
         )
+        segment_data, _ = self.send_buffer[oldest_seq_num]
+
+        # 重传
+        segment = UrpSegment.unpack(segment_data)
+        if segment:
+            self.send_seg(segment, is_new=False)
 
     def send_data_segments(self):
         pass
 
     def send_seg(self, seg, is_new):
-        pass
-
-    def fast_retrans(self):
-        """快速重传最老的未确认的段"""
         pass
 
     def connection_close(self):
@@ -332,8 +335,8 @@ class Sender:
     def _is_new_ack(self, ack_num):
         pass
 
-    def _is_before(self, ack_num):
+    def _is_before(self, seq1, seq2):
         pass
 
     def _seq_distance(self, seq1, seq2):
-        pass
+        return 0
