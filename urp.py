@@ -37,6 +37,9 @@ class UrpSegment:
             保留位 (12 bits) + 控制标志位 (3 bits)
             校验和 (2 bytes)
             Total: 6 bytes
+
+        Returns:
+            bytes: 字节流数据段
         """
         reserved_flags = self.flags & 0b00000111  # 只保留低3位
         header = struct.pack("!HHH", self.seq_num, reserved_flags, 0)
@@ -51,7 +54,7 @@ class UrpSegment:
         return header + self.data
 
     @staticmethod
-    def unpack(data):
+    def unpack(data: bytes):
         """从字节流解包
 
         Returns:

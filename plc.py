@@ -3,6 +3,7 @@ PLC 模块
 """
 
 import random
+import threading
 
 
 class PlcModule:
@@ -25,6 +26,10 @@ class PlcModule:
         self.fcp = fcp
         self.rcp = rcp
 
+        # 统计信息线程锁
+        self.stats_lock = threading.Lock()
+
+        # 统计信息
         self.fwd_dropped = 0
         self.rev_dropped = 0
         self.fwd_corrupted = 0
@@ -41,11 +46,13 @@ class PlcModule:
         """
 
         if random.random() < self.flp:
-            self.fwd_dropped += 1
+            with self.stats_lock:
+                self.fwd_dropped += 1
             return None, "drp"
 
         if random.random() < self.fcp:
-            self.fwd_corrupted += 1
+            with self.stats_lock:
+                self.fwd_corrupted += 1
             corrupted_data = self._corrupt_segment(data)
             return corrupted_data, "cor"
 
@@ -62,11 +69,13 @@ class PlcModule:
         """
 
         if random.random() < self.rlp:
-            self.rev_dropped += 1
+            with self.stats_lock:
+                self.rev_dropped += 1
             return None, "drp"
 
         if random.random() < self.rcp:
-            self.rev_corrupted += 1
+            with self.stats_lock:
+                self.rev_corrupted += 1
             corrupted_data = self._corrupt_segment(data)
             return corrupted_data, "cor"
 
