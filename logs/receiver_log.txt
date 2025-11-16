@@ -1,27 +1,99 @@
-rcv ok     0.00 SYN  32543    0
-snd ok     0.12 ACK  32544    0
-rcv ok     1.49 DATA 32544 1000
-snd ok     1.62 ACK  33544    0
-rcv ok     2.96 DATA 33544 1000
-snd ok     3.06 ACK  34544    0
-rcv ok     4.42 DATA 34544 1000
-snd ok     4.51 ACK  35544    0
-rcv ok     5.73 DATA 35544  500
-snd ok     5.82 ACK  36044    0
-rcv ok   147.35 DATA 34544 1000
-snd ok   147.44 ACK  36044    0
-rcv ok   259.90 DATA 34544 1000
-snd ok   259.99 ACK  36044    0
-rcv ok   483.33 DATA 34544 1000
-snd ok   483.43 ACK  36044    0
-rcv ok   622.10 FIN  36044    0
-snd ok   622.17 ACK  36045    0
+rcv ok     0.00 SYN  45056    0
+snd ok     0.09 ACK  45057    0
+rcv ok  1007.67 SYN  45056    0
+snd ok  1007.76 ACK  45057    0
+rcv ok  1009.12 DATA 45057 1000
+snd ok  1009.20 ACK  46057    0
+rcv ok  1010.68 DATA 49057 1000
+snd ok  1010.77 ACK  46057    0
+rcv ok  1012.14 DATA 50057 1000
+snd ok  1012.23 ACK  46057    0
+rcv ok  1013.55 DATA 51057 1000
+snd ok  1013.64 ACK  46057    0
+rcv ok  1015.00 DATA 52057 1000
+snd ok  1015.09 ACK  46057    0
+rcv cor 1016.40 DATA 53057 1000
+rcv ok  1017.77 DATA 54057 1000
+snd ok  1017.86 ACK  46057    0
+rcv ok  1019.23 DATA 55057 1000
+snd ok  1019.32 ACK  46057    0
+rcv ok  1020.64 DATA 56057 1000
+snd ok  1020.72 ACK  46057    0
+rcv ok  1022.10 DATA 57057 1000
+snd ok  1022.19 ACK  46057    0
+rcv ok  1023.50 DATA 58057 1000
+snd ok  1023.58 ACK  46057    0
+rcv ok  1024.94 DATA 59057 1000
+snd ok  1025.03 ACK  46057    0
+rcv ok  1026.35 DATA 60057 1000
+snd ok  1026.44 ACK  46057    0
+rcv ok  1027.78 DATA 61057 1000
+snd ok  1027.86 ACK  46057    0
+rcv ok  1029.20 DATA 62057 1000
+snd ok  1029.28 ACK  46057    0
+rcv ok  1030.60 DATA 63057 1000
+snd ok  1030.69 ACK  46057    0
+rcv ok  1032.05 DATA 64057 1000
+snd ok  1032.13 ACK  46057    0
+rcv ok  1033.45 DATA 65057 1000
+snd ok  1033.54 ACK  46057    0
+rcv cor 1034.90 DATA  1521 1000
+rcv ok  1036.24 DATA 46057 1000
+snd ok  1036.34 ACK  47057    0
+rcv ok  1037.64 DATA  2521 1000
+snd ok  1037.73 ACK  47057    0
+rcv ok  1039.05 DATA  3521 1000
+snd ok  1039.14 ACK  47057    0
+rcv ok  1040.46 DATA  4521 1000
+snd ok  1040.55 ACK  47057    0
+rcv ok  1041.90 DATA  5521 1000
+snd ok  1042.03 ACK  47057    0
+rcv cor 1043.34 DATA  6521 1000
+rcv ok  1044.66 DATA  7521 1000
+snd ok  1044.75 ACK  47057    0
+rcv cor 1046.07 DATA  9521 1000
+rcv ok  1047.40 DATA 10521 1000
+snd ok  1047.49 ACK  47057    0
+rcv ok  1048.83 DATA 11521 1000
+snd ok  1048.92 ACK  47057    0
+rcv ok  1050.20 DATA 12521 1000
+snd ok  1050.28 ACK  47057    0
+rcv ok  1051.50 DATA 13521  516
+snd ok  1051.59 ACK  47057    0
+rcv ok  1052.95 DATA 46057 1000
+snd ok  1053.04 ACK  47057    0
+rcv ok  1071.44 DATA 46057 1000
+snd ok  1071.53 ACK  47057    0
+rcv ok  1079.45 DATA 46057 1000
+snd ok  1079.51 ACK  47057    0
+rcv ok  1141.25 DATA 47057 1000
+snd ok  1141.31 ACK  48057    0
+rcv ok  1142.50 DATA 47057 1000
+snd ok  1142.53 ACK  48057    0
+rcv ok  2211.20 DATA 48057 1000
+snd ok  2211.34 ACK  53057    0
+rcv ok  3243.18 DATA 53057 1000
+snd ok  3243.38 ACK    521    0
+rcv ok  4288.13 DATA   521 1000
+snd ok  4288.23 ACK   1521    0
+rcv ok  5319.84 DATA  1521 1000
+snd ok  5319.92 ACK   6521    0
+rcv ok  6340.34 DATA  6521 1000
+snd ok  6340.41 ACK   8521    0
+rcv ok  8382.33 DATA  6521 1000
+snd ok  8382.37 ACK   8521    0
+rcv ok  10429.13 DATA  8521 1000
+snd ok  10429.18 ACK   9521    0
+rcv ok  11450.90 DATA  9521 1000
+snd ok  11450.98 ACK  14037    0
+rcv ok  11461.99 FIN  14037    0
+snd ok  11462.02 ACK  14038    0
 
-Original data received:        3500
-Total data received:           6500
-Original segments received:    5
-Total segments received:       9
-Corrupted segments discarded:  0
-Duplicate segments received:   3
-Total acks sent:               9
-Duplicate acks sent:           3
+Original data received:        34516
+Total data received:           39516
+Original segments received:    36
+Total segments received:       47
+Corrupted segments discarded:  4
+Duplicate segments received:   6
+Total acks sent:               43
+Duplicate acks sent:           31

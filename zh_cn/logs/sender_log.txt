@@ -1,0 +1,117 @@
+snd ok     0.00 SYN  17694    0
+rcv ok     0.48 ACK  17695    0
+snd drp    1.31 DATA 17695 1000
+snd cor    1.77 DATA 18695 1000
+snd ok     2.04 DATA 19695 1000
+snd cor    2.30 DATA 20695 1000
+snd cor    2.57 DATA 21695 1000
+snd ok     2.81 DATA 22695 1000
+snd ok     3.07 DATA 23695 1000
+snd ok     3.31 DATA 24695 1000
+snd ok     3.56 DATA 25695 1000
+snd cor    3.80 DATA 26695 1000
+snd ok     4.03 DATA 27695 1000
+snd ok     4.27 DATA 28695 1000
+snd ok     4.77 DATA 29695 1000
+snd ok     5.01 DATA 30695 1000
+snd ok     5.50 DATA 31695 1000
+rcv ok     5.57 ACK  17695    0
+snd ok     5.86 DATA 32695 1000
+snd ok     6.03 DATA 33695 1000
+snd ok     6.15 DATA 34695 1000
+snd cor    6.27 DATA 35695 1000
+snd ok     6.39 DATA 36695 1000
+snd cor    6.51 DATA 37695 1000
+snd ok     6.64 DATA 38695 1000
+snd ok     6.75 DATA 39695 1000
+snd ok     6.87 DATA 40695 1000
+snd ok     6.99 DATA 41695 1000
+snd ok     7.11 DATA 42695 1000
+snd ok     7.23 DATA 43695 1000
+snd ok     7.34 DATA 44695 1000
+snd ok     7.46 DATA 45695 1000
+snd ok     7.58 DATA 46695 1000
+snd ok     7.70 DATA 47695 1000
+snd ok     7.83 DATA 48695 1000
+snd ok     7.95 DATA 49695 1000
+snd ok     8.07 DATA 50695 1000
+rcv ok     8.15 ACK  17695    0
+snd ok     8.29 DATA 51695  516
+rcv ok   291.80 ACK  17695    0
+snd ok   292.30 DATA 17695 1000
+rcv ok   292.39 ACK  17695    0
+rcv ok   318.34 ACK  17695    0
+rcv ok   323.67 ACK  17695    0
+snd ok   329.14 DATA 17695 1000
+rcv ok   329.24 ACK  17695    0
+rcv ok   360.56 ACK  17695    0
+rcv ok   360.70 ACK  17695    0
+snd ok   368.75 DATA 17695 1000
+rcv ok   368.82 ACK  17695    0
+rcv ok   368.89 ACK  17695    0
+rcv ok   455.57 ACK  17695    0
+snd ok   567.93 DATA 17695 1000
+rcv ok   567.99 ACK  17695    0
+rcv ok   578.25 ACK  17695    0
+rcv ok   608.98 ACK  17695    0
+snd ok   775.78 DATA 17695 1000
+rcv ok   775.89 ACK  17695    0
+rcv drp  781.07 ACK  17695    0
+rcv ok   827.56 ACK  17695    0
+rcv ok   874.55 ACK  17695    0
+snd ok   968.75 DATA 17695 1000
+rcv ok   968.81 ACK  17695    0
+rcv ok  1002.21 ACK  17695    0
+rcv ok  1012.69 ACK  17695    0
+snd ok  1013.06 DATA 17695 1000
+snd drp 1013.46 DATA 17695 1000
+rcv ok  1013.49 ACK  17695    0
+rcv cor 1018.66 ACK  17695    0
+rcv ok  1024.09 ACK  17695    0
+rcv ok  1024.16 ACK  17695    0
+snd drp 1073.75 DATA 17695 1000
+rcv ok  1073.78 ACK  17695    0
+rcv ok  1103.55 ACK  17695    0
+rcv ok  1161.59 ACK  18695    0
+rcv ok  1166.91 ACK  18695    0
+rcv ok  1167.00 ACK  18695    0
+snd cor 1172.86 DATA 18695 1000
+rcv ok  1172.95 ACK  18695    0
+rcv ok  1183.91 ACK  18695    0
+rcv ok  1184.17 ACK  18695    0
+snd ok  1184.80 DATA 18695 1000
+rcv ok  1184.87 ACK  18695    0
+rcv cor 1200.73 ACK  20695    0
+snd ok  2172.59 DATA 18695 1000
+rcv ok  2198.88 ACK  20695    0
+snd drp 3205.96 DATA 20695 1000
+snd ok  4216.85 DATA 20695 1000
+rcv drp 4225.62 ACK  21695    0
+snd ok  5236.41 DATA 20695 1000
+rcv ok  5302.88 ACK  21695    0
+snd ok  6298.50 DATA 21695 1000
+rcv ok  6345.30 ACK  26695    0
+snd ok  7343.94 DATA 26695 1000
+rcv ok  7376.72 ACK  35695    0
+snd ok  8382.43 DATA 35695 1000
+rcv ok  8434.69 ACK  37695    0
+snd ok  9429.96 DATA 37695 1000
+rcv ok  9446.17 ACK  52211    0
+snd drp 9461.71 FIN  52211    0
+snd ok  10468.40 FIN  52211    0
+rcv drp 10468.76 ACK  52212    0
+snd ok  11477.48 FIN  52211    0
+rcv ok  11477.87 ACK  52212    0
+
+Original data sent:             34516
+Total data sent:                53516
+Original segments sent:         37
+Total segments sent:            58
+Timeout retransmissions:        11
+Fast retransmissions:           10
+Duplicate acks received:        31
+Corrupted acks discarded:       2
+PLC forward segments dropped:   5
+PLC forward segments corrupted: 7
+PLC reverse segments dropped:   3
+PLC reverse segments corrupted: 2

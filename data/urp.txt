@@ -1,0 +1,109 @@
+
+
+COMP3331/9331                                                               UNSW
+                                                                         T3 2025
+
+
+
+                          UDP-based Reliable Protocol
+                          ---------------------------
+
+
+
+3.2.  Segment Format
+
+  A URP segment consists of a segment header and a data section.  The segment 
+  header has a fixed length of 6 bytes and all fields must be set appropriately. 
+  The data section follows the header and is the payload data carried for the 
+  application.  The length of the data section is not specified in the segment 
+  header; it can be calculated by subtracting the length of the segment header 
+  from the total length of the segment.  All multi-byte fields in the segment 
+  header are represented in network byte order (big-endian), with the most 
+  significant byte first.
+
+
+                        0                   1           
+                        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 
+                       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                       |   Sequence Number (16 bits)   |
+                       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                       |                         |A|S|F|
+                       |   Reserved (13 bits)    |C|Y|I|
+                       |                         |K|N|N|
+                       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                       |   Error Detection (16 bits)   |
+                       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                       |     Data (0 to MSS bytes)     |
+                       |              ...              |
+                       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+  Sequence Number:  16 bits
+
+    This field is used in every segment.  Its meaning depends on the segment 
+    type:
+
+    DATA:  The sequence number indicates the byte number of the first data byte 
+           in the segment relative to the connection's byte stream.  For each 
+           segment carrying data, the sequence number increases by the number of 
+           payload bytes.  Note that SYN and FIN control segments also consume 
+           one sequence number even though no data is sent.
+    ACK:   The sequence number serves as a cumulative acknowledgment, indicating 
+           the next byte expected by the Receiver.  (URP does not have a 
+           separate acknowledgment field.)
+    SYN:   The sequence number is the initial sequence number (ISN), chosen 
+           randomly in the range 0 to 216 - 1, inclusive.  The first DATA 
+           segment in the connection therefore has sequence number ISN + 1.
+    FIN:   The sequence number is one greater than the sequence number of the 
+           last byte of the final DATA segment.
+
+    In URP, the logic for determining sequence and acknowledgment numbers is 
+    similar to TCP.  However, because URP is unidirectional, each segment 
+    requires only one of these values.  To avoid unnecessary overhead, URP 
+    reuses the single sequence number field to serve both roles.
+
+  Reserved:  13 bits
+
+    Must be set to zero.
+
+  Control Bits:  3 bits ("flags", from left to right):
+
+    Only one control bit may be set at a time.  Unlike TCP, URP segments are 
+    always exactly one type: DATA, ACK, SYN, or FIN.
+
+    ACK:   If set, the segment is an ACK.  The sequence number field is 
+           interpreted as an acknowledgment number.
+    SYN:   If set, the segment is a SYN.  The sequence number is the initial 
+           sequence number (ISN).
+    FIN:   If set, the segment is a FIN.  The sequence number is one greater 
+           than the last byte number of the final DATA segment.
+    DATA:  If no control bit is set, the segment is a DATA segment.  The 
+           sequence number indicates the first byte of the payload.
+
+  Error Detection:  16 bits
+
+    This field provides protection against transmission errors in both the URP 
+    header and data.  Its purpose is to allow the receiver of the segment to 
+    detect at least single-bit errors.
+
+    - You must make use of this field to implement an error-detection scheme of 
+      your choice.
+    - At minimum, the scheme should reliably detect single-bit errors in any 
+      segment.
+    - Possible approaches include a simple checksum (e.g., the 16-bit ones' 
+      complement sum used in TCP/UDP) or a parity-based scheme.
+    - The sender of the segment is responsible for calculating and setting the 
+      value of this field before transmission.  The receiver of the segment must 
+      recompute and verify the value on arrival.  If the check fails, the 
+      segment must be discarded without further processing.
+
+  Data:  0 to MSS bytes
+
+    The actual payload data carried in a DATA segment.  The maximum segment size 
+    (MSS) for a DATA segment is 1000 bytes (payload only, excluding headers).
+
+    - With a 6-byte header, a DATA segment can therefore be up to 1006 bytes in 
+      total.
+    - The final DATA segment may be smaller if the file size is not a multiple 
+      of 1000 bytes.
+    - All non-DATA segments (SYN, ACK, FIN) consist only of the 6-byte header.

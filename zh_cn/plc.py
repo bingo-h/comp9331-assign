@@ -1,5 +1,5 @@
 """
-PLC Module
+PLC 模块
 """
 
 import random
@@ -7,17 +7,17 @@ import threading
 
 
 class PlcModule:
-    """Simulating packet loss and corruption on unreliable channels
+    """模拟不可靠信道的包丢失和损失
 
     Attributes:
-        flp (float): Forward loss rate
-        rlp (float): Reverse loss rate
-        fcp (float): Forward corruption rate
-        rcp (float): Reverse corruption rate
-        fd_dropped (int): Forward loss counter
-        bk_dropped (int): Backward loss counter
-        fd_corrupted (int): Forward corruption counter
-        bk_corrupted (int): Backward corruption counter
+        flp (float): 前向丢失率
+        rlp (float): 后向丢失率
+        fcp (float): 前向损坏率
+        rcp (float): 后向损坏率
+        fd_dropped (int): 前向丢失计数器
+        bk_dropped (int): 后向丢失计数器
+        fd_corrupted (int): 前向损失计数器
+        bk_corrupted (int): 后向损失计数器
     """
 
     def __init__(self, flp, rlp, fcp, rcp) -> None:
@@ -26,17 +26,17 @@ class PlcModule:
         self.fcp = fcp
         self.rcp = rcp
 
-        # Statistics Information Thread Lock
+        # 统计信息线程锁
         self.stats_lock = threading.Lock()
 
-        # Statistics
+        # 统计信息
         self.fwd_dropped = 0
         self.rev_dropped = 0
         self.fwd_corrupted = 0
         self.rev_corrupted = 0
 
     def process_fd(self, data):
-        """Processing forward packets
+        """处理前向包
 
         Sender --> PLC --> Receiver
 
@@ -59,7 +59,7 @@ class PlcModule:
         return data, "ok"
 
     def process_bk(self, data):
-        """Processing backward packets
+        """处理反向包
 
         Sender <-- PLC <-- Receiver
 
@@ -83,9 +83,9 @@ class PlcModule:
 
     @staticmethod
     def _corrupt_segment(data):
-        """Damaged segment data
+        """损坏段数据
 
-        Skip the first 4 bytes, randomly select one byte, and randomly flip one of its bits
+        跳过前4 bytes，随机选择一个字节并随机翻转其中一个位
         """
 
         if len(data) <= 4:

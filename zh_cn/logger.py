@@ -1,5 +1,10 @@
 """
-Logging Module
+日志模块
+
+记录日志
+
+Functions:
+    TODO
 """
 
 from pathlib import Path
@@ -9,12 +14,7 @@ from urp import UrpSegment
 
 
 class Logger:
-    """Logging class
-
-    Attributes:
-        log_file (file): The file recording log
-        start_time (time): The time of logging first segment
-    """
+    """日志记录"""
 
     def __init__(self, file_name) -> None:
         current_dir = Path(__file__).resolve().parent

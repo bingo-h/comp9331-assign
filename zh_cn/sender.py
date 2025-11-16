@@ -1,7 +1,10 @@
 """
-Transmission Module
+发送模块
 
-Multi-threaded processing of transmission data
+多线程处理发送数据
+
+Functions:
+    TODO
 """
 
 import sys
@@ -17,64 +20,63 @@ from logger import Logger
 from timer import Timer
 
 # ========================================
-# Constant definition
+# 常量定义
 # ========================================
-# State constants
+# 状态常量
 STATE_CLOSED = 0
 STATE_SYN_SENT = 1
 STATE_ESTABLISHED = 2
 STATE_CLOSING = 3
 STATE_FIN_WAIT = 4
 
-# Other constants
-MAX_SEQ_NUM = 65536  # Max sequence number: 2^16
-MSS = 1000  # Max length of data
+# 其他常量
+MAX_SEQ_NUM = 65536  # 序列号最大值: 2^16
+MSS = 1000  # 数据段最大值
 
 
 class Sender:
-    """Sender Class
+    """发送端类
 
-
-    Multithreaded Processing:
-        Thread 1: Transmit Thread - Window space available and new data remains to be sent
-        Thread 2: Receive Thread - Handles ACK reception events
-        Thread 3: Timer Thread - Handles timeout retransmissions
-        Main Thread: Coordinates all threads and manages state transitions
+    多线程处理:
+        线程1: 发送线程 - 窗口空间可用且仍有新数据未发
+        线程2: 接收线程 - 处理ACK接收事件
+        线程3: 定时器线程 - 处理超时重传
+        主线程: 协调各线程，管理状态转换
 
     Attributes:
-        sender_port (int): Sender port
-        receiver_port (int): Receiver port
-        filename (str): File to send
-        max_win (int): Maximum transmission window
-        rto (float): Timeout (in ms)
-        flp (float): Forward loss rate
-        rlp (float): Round-trip loss percentage
-        fcp (float): Forward error correction percentage
-        rcp (float): Round-trip correction percentage
+        sender_port (int): 发送端端口
+        receiver_port (int): 接收端端口
+        filename (str): 发送文件
+        max_win (int): 最大发送窗口
+        rto (float): 超时时间 (单位: ms)
+        flp (float): 前向损失率
+        rlp (float): 后向丢失率
+        fcp (float): 前向损坏率
+        rcp (float): 后向损坏率
 
-        plc (PlcModule): Plc module
-        sock (socket): UDP socket
-        state (int): Current sender state
-        isn (int): Initial sequence number
-        next_seq_num (int): Next segment sequence number
-        send_buffer (dict): Send buffer {seq_num: (segment, send_time)}
+        plc (PlcModule): Plc模块
+        sock (socket): UDP Socket
+        state (int): 发送端当前状态
+        isn (int): 初始序列号
+        next_seq_num (int): 下一段序列号
+        send_buffer (dict): 发送缓冲区 {seq_num: (segment, send_time)}
 
-        timer_thread (Thread): Timer thread
-        timer_running (bool): Timer running flag
+        timer_thread ()
+        timer_running (bool): 计时器运行标志
         timer_lock
 
-        dup_ack_count (int): Duplicate ACK counter
-        last_ack_num (int): Last received ACK
-        log_file (file): Log file
-        start_time (time): Sender start time
-        stats (dict): Statistics
+        dup_ack_count (int): 重复ACK计数器
+        last_ack_num (int): 上一次接收到的ACK
+        log_file (file): 日志文件
+        start_time (time): 发送端开始时间
+        stats (dict): 统计信息
 
-        file_handle (file): File to read
-        file_size (int): File size
-        file_pos (int): Current byte position within the file
-        all_data_sent (bool): Send completion flag
+        file_handle (): 文件句柄
+        file_size (int): 文件总大小
+        file_pos (int): 当前在文件内的第几个字节
+        all_data_sent (bool): 发送完成标志
 
-        running (bool): Thread running flag
+        running (bool): 线程运行标志
     """
 
     def __init__(
@@ -84,44 +86,44 @@ class Sender:
         self.receiver_port = receiver_port
         self.filename = filename
         self.max_win = max_win
-        self.rto = rto / 1000.0  # Convert to seconds
+        self.rto = rto / 1000.0  # 转换为秒
 
-        # Initialize PLC Module
+        # 初始化PLC模块
         self.plc = PlcModule(flp, rlp, fcp, rcp)
 
-        # Create a UDP socket
+        # 创建UDP套接字
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", sender_port))
         self.sock.settimeout(0.01)
 
-        # State
+        # 状态
         self.state_lock = threading.Lock()
         self.state = STATE_CLOSED
 
-        # Sequence number
+        # 序列号
         self.isn = random.randint(0, MAX_SEQ_NUM - 1)
         self.next_seq_num = (self.isn + 1) % MAX_SEQ_NUM
         self.base = self.isn
 
-        # Send Buffer (Unacknowledged Segments)
+        # 发送缓冲区 (未确认段)
         self.buffer_lock = threading.RLock()
         self.send_buffer = {}
 
-        # Timer
+        # 定时器
         self.timer = Timer(
             timeout=self.rto, callback=self.handle_timeout, auto_restart=True
         )
 
-        # Duplicate ACK Count
+        # 重复ACK计数
         self.ack_lock = threading.RLock()
         self.dup_ack_count = 0
         self.last_ack_num = 0
 
-        # Log file
+        # 日志文件
         self.log_lock = threading.RLock()
         self.log = Logger("sender_log.txt")
 
-        # Statistics
+        # 统计信息
         self.stats_lock = threading.RLock()
         self.stats = {
             "original_data_sent": 0,
@@ -134,46 +136,46 @@ class Sender:
             "corrupted_acks_discarded": 0,
         }
 
-        # Files to be sent
+        # 要发送的文件
         self.file_lock = threading.RLock()
         self.file_handle = None
         self.file_size = 0
         self.file_pos = 0
         self.all_data_sent = False
 
-        # Thread control
+        # 线程控制
         self.running = True
         self.send_thread = None
         self.recv_thread = None
 
-        # Event Notification
-        # Notify when window has space
+        # 事件通知
+        # 窗口有空间时通知
         self.window_available_event = threading.Event()
         self.window_available_event.set()
 
     def run(self):
-        """Run the sender's main process"""
+        """运行发送端主流程"""
         try:
-            # Open file
+            # 打开文件
             self.file_handle = open(self.filename, "rb")
 
-            # Obtain the file size
+            # 获取文件大小
             self.file_handle.seek(0, 2)
             self.file_size = self.file_handle.tell()
             self.file_handle.seek(0, 0)
 
-            print(f"Total size of file: {self.file_size} Bytes")
+            print(f"文件总大小: {self.file_size} Bytes")
 
-            # Begin establishing the connection
+            # 开始建立连接
             self.connection_setup()
 
-            # Data Transmission
+            # 数据传输
             self.data_transfer()
 
-            # Connection Closed
+            # 连接关闭
             self.connection_close()
 
-            # Write to the log file
+            # 写入日志文件
             self.write_stats()
 
         except Exception as e:
@@ -184,47 +186,46 @@ class Sender:
             self.cleanup()
 
     def connection_setup(self):
-        """Connection Establishment Phase (SYN, ACK)"""
-        print("Begin establishing the connection...")
+        """建立连接阶段 (SYN, ACK)"""
+        print("开始建立连接...")
 
         with self.state_lock:
             self.state = STATE_SYN_SENT
 
-        # Send SYN
+        # 发送SYN
         self.start_time = time.time()
         syn_segment = UrpSegment(self.isn, FLAG_SYN, b"")
         self.send_segment(syn_segment, is_new=True)
 
-        # Waiting for ACK (polling method, simpler connection establishment)
+        # 等待ACK (轮询方式，连接建立较简单)
         while True:
             with self.state_lock:
                 if self.state == STATE_ESTABLISHED:
                     break
 
-            # Receive ACK
+            # 接收ACK
             if self.check_for_ack(timeout=0.01):
                 break
 
-            # Check if timeout
+            # 检查超时
             self.checktimeout()
 
     def data_transfer(self):
-        """Data transmission phase"""
+        """数据传输阶段"""
         with self.state_lock:
             self.state = STATE_ESTABLISHED
 
-        # Start the ACK reception thread
+        # 启动接收ACK线程
         self.recv_thread = threading.Thread(target=self.receive_ack_thread, daemon=True)
         self.recv_thread.start()
 
-        # Start the sending thread
+        # 启动发送线程
         self.send_thread = threading.Thread(target=self.send_data_thread, daemon=True)
         self.send_thread.start()
 
-        # The main thread waits for all data to be sent.
-        assert self.file_handle is not None
+        # 主线程等待所有数据发送完毕
         while True:
-            # Check if data transmission is complete: both file_data and send_buffer are empty
+            # 检查是否数据已经发送完: file_data 和 send_buffer 均空
             with self.file_lock:
                 file_done = self.file_pos >= self.file_size
 
@@ -236,11 +237,11 @@ class Sender:
 
             time.sleep(0.01)
 
-        # Stop thread
+        # 停止线程
         self.running = False
         self.timer.stop()
 
-        # Wait for the thread to finish
+        # 等待线程结束
         if self.recv_thread:
             self.recv_thread.join(timeout=1.0)
         if self.send_thread:
@@ -250,16 +251,16 @@ class Sender:
             self.state = STATE_CLOSING
 
     def connection_close(self):
-        """Connection Closed (FIN, ACK)"""
+        """连接关闭 (FIN, ACK)"""
 
-        # CLOSING state: Ensure all data has been received before closing.
+        # CLOSING 状态: 确保所有数据都已被接收才能关闭
         while True:
             with self.buffer_lock:
                 if not self.send_buffer:
                     break
                 time.sleep(0.01)
 
-        # Send FIN
+        # 发送FIN
         with self.state_lock:
             self.state = STATE_FIN_WAIT
 
@@ -269,77 +270,77 @@ class Sender:
         fin_segment = UrpSegment(fin_seq, FLAG_FIN, b"")
         self.send_segment(fin_segment, is_new=True)
 
-        # Wait for ACK
+        # 等待ACK
         while True:
             with self.state_lock:
                 if self.state == STATE_CLOSED:
                     break
 
-            # Receive ACK
+            # 接收ACK
             if self.check_for_ack(timeout=0.01):
                 break
 
-            # Check if timeout
+            # 检查超时
             self.checktimeout()
 
     # ========================================
-    # Event 1: Window space is available and new data remains to be sent
+    # Event 1: 窗口空间可用且仍有新数据未发
     # ========================================
     def send_data_thread(self):
-        """Data Transmission Thread"""
+        """发送数据线程"""
         while self.running:
-            # Wait for Window Available Event
+            # 等待窗口可用事件
             self.window_available_event.wait(timeout=0.01)
 
             with self.state_lock:
                 if self.state != STATE_ESTABLISHED:
                     break
 
-            # Send data
+            # 发送数据
             self.try_send_data()
 
     def try_send_data(self):
-        """Try to send data"""
-        assert self.file_handle is not None
+        """尝试发送数据"""
         while True:
-            # Check if the window has available space
+            # 检查窗口是否有可用空间
             with self.buffer_lock:
                 window_used = self._calculate_window_usage()
                 if window_used >= self.max_win:
                     self.window_available_event.clear()
                     return
 
-            # Check if there is any more data to send
+            # 检查是否还有数据发送
             with self.file_lock:
                 if self.file_pos >= self.file_size:
                     self.all_data_sent = True
                     return
 
-                # Read data
+                # 读取数据
+                assert self.file_handle is not None
                 read_length = min(MSS, self.file_size - self.file_pos)
                 data = self.file_handle.read(read_length)
                 self.file_pos += len(data)
 
-                # Obtain sequence number
+                # 获取序列号
                 with self.buffer_lock:
                     seq_num = self.next_seq_num
                     self.next_seq_num = (seq_num + len(data)) % MAX_SEQ_NUM
 
-            # Create and send segment
+            # 创建并发送数据段
             segment = UrpSegment(seq_num, FLAG_DATA, data)
             self.send_segment(segment, is_new=True)
 
-            # Update statistics
+            # 更新统计信息
             with self.stats_lock:
                 self.stats["original_data_sent"] += len(data)
 
-            # If this is the first unconfirmed segment, start the timer
+            # 如果这是第一个未确认的段，启动定时器
             with self.buffer_lock:
                 if len(self.send_buffer) == 1:
                     self.timer.start()
 
     def _calculate_window_usage(self):
-        """Calculate the current window usage"""
+        """计算当前窗口使用量"""
         total_bytes = 0
         for seq_num, (seq_data, _) in self.send_buffer.items():
             segment = UrpSegment(seq_data)
@@ -349,10 +350,10 @@ class Sender:
         return total_bytes
 
     # ========================================
-    # Event 2: Timeout event
+    # Event 2: 超时事件
     # ========================================
     def handle_timeout(self):
-        """Handle timeout by retransmitting the oldest segment"""
+        """处理超时，重传最老的段"""
         with self.buffer_lock:
             if not self.send_buffer:
                 return
@@ -360,96 +361,88 @@ class Sender:
             self.retrans_oldest()
 
     def checktimeout(self):
-        """Timeout Check
-
-        Applies only to connection establishment and termination
-        """
+        """超时检查 (仅用于连接建立和关闭)"""
         with self.buffer_lock:
             if not self.send_buffer:
                 return
 
-            # Check if timeout
+            # 检查是否超时
             if time.time() - self.send_buffer[self.base][1] >= self.rto:
-                print(
-                    "A timeout was detected during the connect or close phase; SYN/FIN retransmission has begun."
-                )
+                print("连接或关闭阶段检测到超时，开始重传SYN/FIN")
                 self.retrans_oldest()
 
     def retrans_oldest(self, retrans_type="timeout_retrans"):
-        """Resend the oldest segment
+        """重传最老的段
 
         Args:
             retrans_type (str): timeout or fast_retrans
         """
-        print("Begin retransmission...")
+        print("开始重传...")
         with self.buffer_lock:
             if not self.send_buffer:
                 return
 
-            print(f"Current window sequence number starting point: {self.base}")
+            print(f"当前窗口序列号起点: {self.base}")
             segment, _ = self.send_buffer[self.base]
 
             if segment:
-                print(f"Retransmission Sequence Number: {segment.seq_num}")
+                print(f"重传序列号: {segment.seq_num}")
                 self.send_segment(segment)
 
                 with self.stats_lock:
                     self.stats[retrans_type] += 1
 
-                # Update send time
+                # 更新发送时间
                 self.send_buffer[self.base] = (segment, time.time())
 
     # ========================================
-    # Event 3: Receive ACK
+    # Event 3: ACK接收
     # ========================================
     def receive_ack_thread(self):
-        """Receive ACK Thread"""
+        """接收ACK线程"""
         self.sock.settimeout(0.01)
 
         while self.running:
             self.receive_ack()
 
     def check_for_ack(self, timeout):
-        """Check for ACK arrival
-
-        Only for connection establishment and termination
-        """
+        """检查是否有ACK到达 (仅用于连接建立和关闭)"""
         self.sock.settimeout(timeout)
 
         return self.receive_ack()
 
     def receive_ack(self):
-        """Receive ACK Segment"""
+        """接收ACK段"""
         try:
             data, addr = self.sock.recvfrom(2048)
 
-            # PLC process data
+            # PLC 处理
             processed_data, status = self.plc.process_bk(data)
 
-            # Analyzing the ACK Segment
+            # 解析ACK段
             ack_segment = UrpSegment.unpack(data)
             if not ack_segment:
                 return
 
-            print(f"Receive ACK: {ack_segment.seq_num}")
+            print(f"接收到ACK: {ack_segment.seq_num}")
 
             if status == "cor":
-                print(f"ACK corrupted: {ack_segment.seq_num}")
+                print(f"ACK损坏: {ack_segment.seq_num}")
                 with self.stats_lock:
                     self.stats["corrupted_acks_discarded"] += 1
 
             elif status == "ok":
-                # Verify checksum
+                # 验证校验和
                 if not ack_segment.verify_checksum():
                     status = "cor"
                     with self.stats_lock:
                         self.stats["corrupted_acks_discarded"] += 1
                 else:
-                    print("ACK verification complete, processing begins...")
+                    print("ACK校验完成，开始处理...")
                     self.process_ack(ack_segment)
 
             else:
-                print(f"ACK dropped: {ack_segment.seq_num}")
+                print(f"该段被丢弃: {ack_segment.seq_num}")
 
             with self.log_lock:
                 self.log.log_segment("rcv", status, ack_segment, 0)
@@ -463,13 +456,13 @@ class Sender:
             print(f"Error: {e}")
 
     def process_ack(self, segment: UrpSegment):
-        """Process ACK segment"""
+        """处理接收到的ACK段"""
         ack_num = segment.seq_num
 
         with self.state_lock:
             current_state = self.state
 
-        # Handle ACK Based on Status
+        # 根据状态处理ACK
         if current_state == STATE_SYN_SENT:
             # Expected ACK = ISN + 1
             expected_ack = (self.isn + 1) % MAX_SEQ_NUM
@@ -478,24 +471,23 @@ class Sender:
                 with self.state_lock:
                     self.state = STATE_ESTABLISHED
                 with self.buffer_lock:
-                    self.send_buffer.clear()  # Clear buffer
+                    self.send_buffer.clear()  # 清空缓冲区
 
         elif self.state == STATE_ESTABLISHED or self.state == STATE_CLOSING:
-            # Check if it is a new ACK
+            # 检查是否是新的ACK
             if self._is_new_ack(ack_num):
                 with self.buffer_lock:
-                    # Slide the window to the current acknowledgment,
-                    # which is also the starting position of the next segment to be sent
+                    # 滑动窗口到当前ack (也是下一个要发送的seg的起始位)
                     self.base = ack_num
 
-                    # Remove confirmed paragraphs
+                    # 移除已确认的段
                     segments_remove = []
                     for seq in self.send_buffer.keys():
                         if self._is_before(seq, ack_num):
                             segments_remove.append(seq)
 
                     for seq in segments_remove:
-                        print(f"Delete sequence numbers in the send buffer: {seq}")
+                        print(f"删除发送缓冲区内序列号: {seq}")
 
                         del self.send_buffer[seq]
 
@@ -503,25 +495,25 @@ class Sender:
 
                     has_unacked = len(self.send_buffer) > 0
 
-                # Reset the counter
+                # 重置计数器
                 with self.ack_lock:
                     self.dup_ack_count = 0
                     self.last_ack_num = ack_num
 
-                # Reset timer
+                # 重启定时器
                 if has_unacked:
-                    print("Received new ACK, restart timer")
+                    print("收到新ACK，重启定时器")
                     self.timer.restart()
                 else:
-                    # All segments have been confirmed, stop the timer
-                    print("All segments have been confirmed, stop the timer")
+                    # 所有的段均已确认，停止定时器
+                    print("所有的段均已确认，停止定时器")
                     self.timer.stop()
 
-                # Free up available space
+                # 空出可用空间
                 self.window_available_event.set()
 
             else:
-                # It is a duplicate ACK
+                # 是重复ACK
                 with self.ack_lock:
                     if ack_num == self.last_ack_num:
                         self.dup_ack_count += 1
@@ -529,9 +521,9 @@ class Sender:
                         with self.stats_lock:
                             self.stats["dup_acks_received"] += 1
 
-                        # Fast retransmission
+                        # 快速重传
                         if self.dup_ack_count == 3:
-                            print("Fast retransmission")
+                            print("快速重传")
                             self.retrans_oldest("fast_retrans")
                             self.dup_ack_count = 0
 
@@ -547,27 +539,27 @@ class Sender:
                 self.timer.stop()
 
     def send_segment(self, segment: UrpSegment, is_new=False):
-        """Transmit Section (via PLC Module)"""
+        """发送段 (通过PLC模块)"""
         segment_bytes = segment.pack()
 
-        # Processed via PLC
+        # 通过PLC处理
         processed_data, status = self.plc.process_fd(segment_bytes)
 
-        # Logging
+        # 记录日志
         with self.log_lock:
             self.log.log_segment("snd", status, segment, len(segment.data))
 
-        # If not discarded, successfully sent
+        # 如果没被丢弃，成功发送
         if status != "drp":
             assert processed_data is not None
             self.sock.sendto(processed_data, ("127.0.0.1", self.receiver_port))
 
-        # If it's a new data segment or a retransmission, add it to the buffer.
+        # 如果是新数据段或者重传，加入缓冲区
         if segment.flags != FLAG_ACK:
             with self.buffer_lock:
                 self.send_buffer[segment.seq_num] = (segment, time.time())
 
-        # Update statistics
+        # 更新统计信息
         with self.stats_lock:
             if is_new:
                 self.stats["original_segments_sent"] += 1
@@ -578,7 +570,7 @@ class Sender:
                 self.stats["total_data_sent"] += len(segment.data)
 
     def write_stats(self):
-        """Write statistics"""
+        """写入统计信息"""
         with self.log_lock:
             self.log.log_file.write("\n")
             self.log.log_file.write(
@@ -634,28 +626,28 @@ class Sender:
         sys.exit(1)
 
     def _is_new_ack(self, ack_num):
-        """Determine whether it is a new ACK"""
+        """判断是否是新的ACK"""
         with self.buffer_lock:
             return self._is_before(self.base, ack_num)
 
     def _is_before(self, seq1, seq2):
-        """Determine whether seq1 is older than seq2
+        """判断seq1是否比seq2旧
 
         Returns:
-            bool: True - seq1 is older than seq2
+            bool: True - seq1比seq2旧
         """
         diff = (seq2 - seq1) % MAX_SEQ_NUM
         return 0 < diff <= MAX_SEQ_NUM // 2
 
     def _print_buffer(self):
-        print("Current buffer: ", end="")
+        print("当前缓冲区: ", end="")
         for seq_num in self.send_buffer.keys():
             print(f"{seq_num}, ", end="")
         print()
 
 
 # ========================================
-# Main function
+# 主函数
 # ========================================
 def main():
     if len(sys.argv) != 10:
