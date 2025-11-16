@@ -25,7 +25,7 @@ STATE_TIME_WAIT = 3
 MAX_SEQ_NUM = 65536  # Max sequence number: 2^16
 MSS = 1000  # Max length of data
 MSL = 1  # 1s
-TIME_WAIT_DURATION = 2 * MSL  # Wait for 2s
+TIME_WAIT_DURATION = 5 * MSL  # Wait for 5s
 
 
 class Receiver:

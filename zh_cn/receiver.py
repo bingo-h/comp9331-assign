@@ -9,7 +9,6 @@ Functions:
 
 import sys
 import socket
-import threading
 import time
 
 from urp import *
@@ -29,7 +28,7 @@ STATE_TIME_WAIT = 3
 MAX_SEQ_NUM = 65536  # 序列号最大值: 2^16
 MSS = 1000  # 数据段最大值
 MSL = 1  # 1s
-TIME_WAIT_DURATION = 2 * MSL  # 等待2s
+TIME_WAIT_DURATION = 5 * MSL  # 等待2s
 
 
 class Receiver:
@@ -178,6 +177,7 @@ class Receiver:
         elif segment.flags & FLAG_FIN:
             # 接收到FIN，进入TIME_WAIT
             print("接收到FIN，进入TIME_WAIT")
+
             ack_num = (segment.seq_num + 1) % MAX_SEQ_NUM
             self.send_ack(ack_num)
             self.state = STATE_TIME_WAIT
@@ -185,16 +185,9 @@ class Receiver:
             # 启动TIME_WAIT定时器
             self.timer.start()
 
-            # 判断是否是重复FIN
-            # if segment.seq_num in self.received_seq_num:
-            #     self.stats["duplicate_segments_received"] += 1
-            # else:
-            #     self.stats["original_segments_received"] += 1
-            #     self.received_seq_num.add(segment.seq_num)
-
         elif segment.flags == FLAG_DATA:
             # 接收到DATA段
-            print("接收到DATA段")
+            print(f"接收到DATA段: {segment.seq_num}")
             self.process_data_segment(segment)
 
     def handle_wait(self, segment: UrpSegment):

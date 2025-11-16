@@ -342,8 +342,7 @@ class Sender:
     def _calculate_window_usage(self):
         """计算当前窗口使用量"""
         total_bytes = 0
-        for seq_num, (seq_data, _) in self.send_buffer.items():
-            segment = UrpSegment(seq_data)
+        for segment, _ in self.send_buffer.values():
             if segment and segment.flags == FLAG_DATA:
                 total_bytes += len(segment.data)
 
@@ -515,6 +514,7 @@ class Sender:
             else:
                 # 是重复ACK
                 with self.ack_lock:
+                    print("收到重复ACK")
                     if ack_num == self.last_ack_num:
                         self.dup_ack_count += 1
 
@@ -553,6 +553,7 @@ class Sender:
         if status != "drp":
             assert processed_data is not None
             self.sock.sendto(processed_data, ("127.0.0.1", self.receiver_port))
+            print(f"发送段序列号: {segment.seq_num}")
 
         # 如果是新数据段或者重传，加入缓冲区
         if segment.flags != FLAG_ACK:

@@ -65,7 +65,7 @@ class UrpSegment:
 
         # 解析头部
         seq_num, reserved_flags, checksum = struct.unpack("!HHH", data[:HEADER_SIZE])
-        flags = reserved_flags & 0b00000111
+        flags = reserved_flags & 0x07
         payload = data[HEADER_SIZE:]
 
         segment = UrpSegment(seq_num, flags, payload)

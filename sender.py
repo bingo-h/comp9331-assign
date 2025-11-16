@@ -341,8 +341,7 @@ class Sender:
     def _calculate_window_usage(self):
         """Calculate the current window usage"""
         total_bytes = 0
-        for seq_num, (seq_data, _) in self.send_buffer.items():
-            segment = UrpSegment(seq_data)
+        for (segment, _) in self.send_buffer.values():
             if segment and segment.flags == FLAG_DATA:
                 total_bytes += len(segment.data)
 
