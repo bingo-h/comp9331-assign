@@ -268,7 +268,7 @@ class Receiver:
         self.last_ack_sent = ack_num
 
     def wait_expired(self):
-        print("Receiving end is shutting down...")
+        print("Receiving FIN, shutting down... (Wait for 5 seconds)")
         time.sleep(TIME_WAIT_DURATION)
         self.state = STATE_CLOSED
         self.running = False
