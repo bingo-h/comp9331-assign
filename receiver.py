@@ -1,7 +1,7 @@
 """
 接收模块
 
-多线程处理收到的数据
+单线程处理收到的数据
 
 Functions:
     TODO
@@ -13,6 +13,8 @@ import threading
 import time
 
 from urp import *
+from logger import Logger
+from timer import Timer
 
 # ========================================
 # 常量定义
@@ -26,6 +28,8 @@ STATE_TIME_WAIT = 3
 # 其他常量
 MAX_SEQ_NUM = 65536  # 序列号最大值: 2^16
 MSS = 1000  # 数据段最大值
+MSL = 1  # 1s
+TIME_WAIT_DURATION = 2 * MSL  # 等待2s
 
 
 class Receiver:
@@ -59,8 +63,8 @@ class Receiver:
         self.output_file = None
 
         # 日志
-        self.log_file = open("receiver_log.txt", "w")
         self.start_time = None
+        self.log = Logger("receiver_log.txt")
 
         # 统计信息
         self.stats = {
@@ -78,9 +82,7 @@ class Receiver:
         self.received_seq_num = set()
 
         # TIME_WAIT定时器
-        self.timer_wait_thread = None
-        self.timer_active = False
-        self.timer_lock = threading.Lock()
+        self.timer = Timer(timeout=TIME_WAIT_DURATION, callback=self.wait_expired)
 
         # 运行标志
         self.running = True
@@ -129,13 +131,13 @@ class Receiver:
 
             # 验证校验和
             if not segment.verify_checksum():
-                self.log_segment("rcv", "cor", segment, len(segment.data))
+                self.log.log_segment("rcv", "cor", segment, len(segment.data))
                 self.stats["corrupted_segments_discarded"] += 1
                 print(f"数据段损坏: {self.stats["corrupted_segments_discarded"]}")
                 return
 
             # 记录日志 (正常接收)
-            self.log_segment("rcv", "ok", segment, len(segment.data))
+            self.log.log_segment("rcv", "ok", segment, len(segment.data))
 
             # 根据状态处理接收数据
             if self.state == STATE_LISTEN:
@@ -181,14 +183,14 @@ class Receiver:
             self.state = STATE_TIME_WAIT
 
             # 启动TIME_WAIT定时器
-            self.start_timer()
+            self.timer.start()
 
             # 判断是否是重复FIN
-            if segment.seq_num in self.received_seq_num:
-                self.stats["duplicate_segments_received"] += 1
-            else:
-                self.stats["original_segments_received"] += 1
-                self.received_seq_num.add(segment.seq_num)
+            # if segment.seq_num in self.received_seq_num:
+            #     self.stats["duplicate_segments_received"] += 1
+            # else:
+            #     self.stats["original_segments_received"] += 1
+            #     self.received_seq_num.add(segment.seq_num)
 
         elif segment.flags == FLAG_DATA:
             # 接收到DATA段
@@ -199,6 +201,7 @@ class Receiver:
         """处理TIME_WAIT状态下收到的数据"""
         if segment.flags & FLAG_FIN:
             # 重复的FIN，重传ACK
+            print("接收到重复FIN，重传ACK")
             ack_num = (segment.seq_num + 1) % MAX_SEQ_NUM
             self.send_ack(ack_num)
             self.stats["duplicate_segments_received"] += 1
@@ -260,7 +263,7 @@ class Receiver:
         self.sock.sendto(segment_data, (self.server_ip, self.sender_port))
 
         # 记录日志
-        self.log_segment("snd", "ok", ack_segment, 0)
+        self.log.log_segment("snd", "ok", ack_segment, 0)
 
         # 更新统计信息
         self.stats["total_acks_sent"] += 1
@@ -272,45 +275,38 @@ class Receiver:
 
         self.last_ack_sent = ack_num
 
-    def start_timer(self):
-        pass
-
-    def log_segment(self, direction, status, segment: UrpSegment, length):
-        if self.start_time is None:
-            elapsed = 0.0
-        else:
-            elapsed = (time.time() - self.start_time) * 1000
-
-        segment_type = segment.get_seg_type()
-        log_entry = f"{direction:3s} {status:3s} {elapsed:7.2f} {segment_type:4s} {segment.seq_num:5d} {length:4d}\n"
-        self.log_file.write(log_entry)
-        self.log_file.flush()
+    def wait_expired(self):
+        print("接收端关闭中...")
+        time.sleep(TIME_WAIT_DURATION)
+        self.state = STATE_CLOSED
+        self.running = False
 
     def write_stats(self):
         """写入统计信息"""
 
-        self.log_file.write(
+        self.log.log_file.write("\n")
+        self.log.log_file.write(
             f"Original data received:        {self.stats['original_data_received']}\n"
         )
-        self.log_file.write(
+        self.log.log_file.write(
             f"Total data received:           {self.stats['total_data_received']}\n"
         )
-        self.log_file.write(
+        self.log.log_file.write(
             f"Original segments received:    {self.stats['original_segments_received']}\n"
         )
-        self.log_file.write(
+        self.log.log_file.write(
             f"Total segments received:       {self.stats['total_segments_received']}\n"
         )
-        self.log_file.write(
+        self.log.log_file.write(
             f"Corrupted segments discarded:  {self.stats['corrupted_segments_discarded']}\n"
         )
-        self.log_file.write(
+        self.log.log_file.write(
             f"Duplicate segments received:   {self.stats['duplicate_segments_received']}\n"
         )
-        self.log_file.write(
+        self.log.log_file.write(
             f"Total acks sent:               {self.stats['total_acks_sent']}\n"
         )
-        self.log_file.write(
+        self.log.log_file.write(
             f"Duplicate acks sent:           {self.stats['duplicate_acks_sent']}\n"
         )
 
@@ -318,10 +314,12 @@ class Receiver:
         """清理资源"""
         if self.output_file:
             self.output_file.close()
-        if self.log_file:
-            self.log_file.close()
+        if self.log.log_file:
+            self.log.log_file.close()
         if self.sock:
             self.sock.close()
+
+        sys.exit(1)
 
 
 # ========================================

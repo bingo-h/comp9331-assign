@@ -16,6 +16,8 @@ import traceback
 
 from plc import PlcModule
 from urp import *
+from logger import Logger
+from timer import Timer
 
 # ========================================
 # 常量定义
@@ -97,6 +99,7 @@ class Sender:
         self.state_lock = threading.Lock()
         self.state = STATE_CLOSED
 
+        # 序列号
         self.isn = random.randint(0, MAX_SEQ_NUM - 1)
         self.next_seq_num = (self.isn + 1) % MAX_SEQ_NUM
         self.base = self.isn
@@ -106,9 +109,9 @@ class Sender:
         self.send_buffer = {}
 
         # 定时器
-        self.timer_thread = None
-        self.timer_active = False
-        self.timer_lock = threading.RLock()
+        self.timer = Timer(
+            timeout=self.rto, callback=self.handle_timeout, auto_restart=True
+        )
 
         # 重复ACK计数
         self.ack_lock = threading.RLock()
@@ -117,8 +120,7 @@ class Sender:
 
         # 日志文件
         self.log_lock = threading.RLock()
-        self.log_file = open("sender_log.txt", "w")
-        self.start_time = None
+        self.log = Logger("sender_log.txt")
 
         # 统计信息
         self.stats_lock = threading.RLock()
@@ -145,8 +147,6 @@ class Sender:
         self.recv_thread = None
 
         # 事件通知
-        # 定时器取消
-        self.timer_clear_event = threading.Event()
         # 窗口有空间时通知
         self.window_available_event = threading.Event()
         self.window_available_event.set()
@@ -189,9 +189,6 @@ class Sender:
         syn_segment = UrpSegment(self.isn, FLAG_SYN, b"")
         self.send_segment(syn_segment, is_new=True)
 
-        # 启动定时器
-        # self.start_timer()
-
         # 等待ACK (轮询方式，连接建立较简单)
         while True:
             with self.state_lock:
@@ -199,12 +196,11 @@ class Sender:
                     break
 
             # 接收ACK
-            self.check_for_ack(timeout=0.01)
+            if self.check_for_ack(timeout=0.01):
+                break
 
             # 检查超时
             self.checktimeout()
-
-        # self.stop_timer()
 
     def data_transfer(self):
         """数据传输阶段"""
@@ -216,7 +212,6 @@ class Sender:
         self.recv_thread.start()
 
         # 启动发送线程
-        self.start_timer()
         self.send_thread = threading.Thread(target=self.send_data_thread, daemon=True)
         self.send_thread.start()
 
@@ -237,7 +232,7 @@ class Sender:
 
         # 停止线程
         self.running = False
-        self.stop_timer()
+        self.timer.stop()
 
         # 等待线程结束
         if self.recv_thread:
@@ -275,7 +270,8 @@ class Sender:
                     break
 
             # 接收ACK
-            self.check_for_ack(timeout=0.01)
+            if self.check_for_ack(timeout=0.01):
+                break
 
             # 检查超时
             self.checktimeout()
@@ -334,7 +330,7 @@ class Sender:
             # 如果这是第一个未确认的段，启动定时器
             with self.buffer_lock:
                 if len(self.send_buffer) == 1:
-                    self.start_timer()
+                    self.timer.start()
 
     def _calculate_window_usage(self):
         """计算当前窗口使用量"""
@@ -349,46 +345,6 @@ class Sender:
     # ========================================
     # Event 2: 超时事件
     # ========================================
-    def start_timer(self):
-        """启动定时器"""
-        with self.timer_lock:
-            # 如果定时器已在运行，则停止
-            if self.timer_active:
-                self.stop_timer_internal()
-
-            # 创建新的定时器线程
-            self.timer_active = True
-            self.timer_clear_event.clear()
-            self.timer_thread = threading.Thread(target=self.timer_worker, daemon=True)
-            self.timer_thread.start()
-
-    def stop_timer(self):
-        """停止定时器"""
-        with self.timer_lock:
-            self.stop_timer_internal()
-
-        print("定时器已停止")
-
-    def stop_timer_internal(self):
-        """停止定时器
-
-        内部方法，外部调用时必须已经持有timer_lock
-        """
-        if self.timer_active:
-            self.timer_active = False
-            self.timer_clear_event.set()
-            if self.timer_thread:
-                self.timer_thread.join(timeout=0.1)
-
-    def timer_worker(self):
-        """定时器工作线程"""
-        print(f"定时器线程 [timer_worker] 启动，超时时间设为: {self.rto}")
-        clear_flag = self.timer_clear_event.wait(timeout=self.rto)
-
-        if not clear_flag:
-            print("[timer_worker] 检测到超时，开始处理...")
-            self.handle_timeout()
-
     def handle_timeout(self):
         """处理超时，重传最老的段"""
         with self.buffer_lock:
@@ -397,25 +353,18 @@ class Sender:
 
             self.retrans_oldest()
 
-        # 重启定时器
-        print("超时处理完成，重启定时器")
-        self.start_timer()
-
     def checktimeout(self):
         """超时检查 (仅用于连接建立和关闭)"""
         with self.buffer_lock:
             if not self.send_buffer:
                 return
 
-            print(f"当前时间: {time.time()}")
-            print(f"当前最旧数据段发送时间: {self.send_buffer[self.base][1]}")
-
             # 检查是否超时
             if time.time() - self.send_buffer[self.base][1] >= self.rto:
-                print("连接阶段检测到超时，开始重传SYN")
+                print("连接或关闭阶段检测到超时，开始重传SYN/FIN")
                 self.retrans_oldest()
 
-    def retrans_oldest(self, retrans_type="timeout"):
+    def retrans_oldest(self, retrans_type="timeout_retrans"):
         """重传最老的段
 
         Args:
@@ -434,8 +383,7 @@ class Sender:
                 self.send_segment(segment)
 
                 with self.stats_lock:
-                    # self.stats[retrans_type] += 1
-                    pass
+                    self.stats[retrans_type] += 1
 
                 # 更新发送时间
                 self.send_buffer[self.base] = (segment, time.time())
@@ -454,7 +402,7 @@ class Sender:
         """检查是否有ACK到达 (仅用于连接建立和关闭)"""
         self.sock.settimeout(timeout)
 
-        self.receive_ack()
+        return self.receive_ack()
 
     def receive_ack(self):
         """接收ACK段"""
@@ -472,6 +420,7 @@ class Sender:
             print(f"接收到ACK: {ack_segment.seq_num}")
 
             if status == "cor":
+                print(f"ACK损坏: {ack_segment.seq_num}")
                 with self.stats_lock:
                     self.stats["corrupted_acks_discarded"] += 1
 
@@ -488,7 +437,10 @@ class Sender:
             else:
                 print(f"该段被丢弃: {ack_segment.seq_num}")
 
-            self.log_segment("rcv", status, ack_segment, 0)
+            with self.log_lock:
+                self.log.log_segment("rcv", status, ack_segment, 0)
+
+            return status == "ok"
 
         except socket.timeout:
             pass
@@ -513,7 +465,6 @@ class Sender:
                     self.state = STATE_ESTABLISHED
                 with self.buffer_lock:
                     self.send_buffer.clear()  # 清空缓冲区
-                self.stop_timer()
 
         elif self.state == STATE_ESTABLISHED or self.state == STATE_CLOSING:
             # 检查是否是新的ACK
@@ -533,10 +484,7 @@ class Sender:
 
                         del self.send_buffer[seq]
 
-                        print("当前缓冲区: ", end="")
-                        for seq_num in self.send_buffer.keys():
-                            print(f"{seq_num}, ", end="")
-                        print()
+                        self._print_buffer()
 
                     has_unacked = len(self.send_buffer) > 0
 
@@ -548,11 +496,11 @@ class Sender:
                 # 重启定时器
                 if has_unacked:
                     print("收到新ACK，重启定时器")
-                    self.start_timer()
+                    self.timer.restart()
                 else:
                     # 所有的段均已确认，停止定时器
                     print("所有的段均已确认，停止定时器")
-                    self.stop_timer()
+                    self.timer.stop()
 
                 # 空出可用空间
                 self.window_available_event.set()
@@ -568,6 +516,7 @@ class Sender:
 
                         # 快速重传
                         if self.dup_ack_count == 3:
+                            print("快速重传")
                             self.retrans_oldest("fast_retrans")
                             self.dup_ack_count = 0
 
@@ -580,7 +529,7 @@ class Sender:
                     self.state = STATE_CLOSED
                 with self.buffer_lock:
                     self.send_buffer.clear()
-                self.stop_timer()
+                self.timer.stop()
 
     def send_segment(self, segment: UrpSegment, is_new=False):
         """发送段 (通过PLC模块)"""
@@ -590,7 +539,8 @@ class Sender:
         processed_data, status = self.plc.process_fd(segment_bytes)
 
         # 记录日志
-        self.log_segment("snd", status, segment, len(segment.data))
+        with self.log_lock:
+            self.log.log_segment("snd", status, segment, len(segment.data))
 
         # 如果没被丢弃，成功发送
         if status != "drp":
@@ -614,59 +564,56 @@ class Sender:
 
     def write_stats(self):
         """写入统计信息"""
-        self.log_file.write(
-            f"Original data sent:            {self.stats['original_data_sent']}\n"
-        )
-        self.log_file.write(
-            f"Total data sent:               {self.stats['total_data_sent']}\n"
-        )
-        self.log_file.write(
-            f"Original segments sent:        {self.stats['original_segments_sent']}\n"
-        )
-        self.log_file.write(
-            f"Total segments sent:           {self.stats['total_segments_sent']}\n"
-        )
-        self.log_file.write(
-            f"Timeout retransmissions:       {self.stats['timeout_retrans']}\n"
-        )
-        self.log_file.write(
-            f"Fast retransmissions:          {self.stats['fast_retrans']}\n"
-        )
-        self.log_file.write(
-            f"Duplicate acks received:       {self.stats['dup_acks_received']}\n"
-        )
-        self.log_file.write(
-            f"Corrupted acks discarded:      {self.stats['corrupted_acks_discarded']}\n"
-        )
-        self.log_file.write(f"PLC forward segments dropped:  {self.plc.fwd_dropped}\n")
-        self.log_file.write(
-            f"PLC forward segments corrupted:{self.plc.fwd_corrupted}\n"
-        )
-        self.log_file.write(f"PLC reverse segments dropped:  {self.plc.rev_dropped}\n")
-        self.log_file.write(
-            f"PLC reverse segments corrupted:{self.plc.rev_corrupted}\n"
-        )
+        with self.log_lock:
+            self.log.log_file.write("\n")
+            self.log.log_file.write(
+                f"Original data sent:             {self.stats['original_data_sent']}\n"
+            )
+            self.log.log_file.write(
+                f"Total data sent:                {self.stats['total_data_sent']}\n"
+            )
+            self.log.log_file.write(
+                f"Original segments sent:         {self.stats['original_segments_sent']}\n"
+            )
+            self.log.log_file.write(
+                f"Total segments sent:            {self.stats['total_segments_sent']}\n"
+            )
+            self.log.log_file.write(
+                f"Timeout retransmissions:        {self.stats['timeout_retrans']}\n"
+            )
+            self.log.log_file.write(
+                f"Fast retransmissions:           {self.stats['fast_retrans']}\n"
+            )
+            self.log.log_file.write(
+                f"Duplicate acks received:        {self.stats['dup_acks_received']}\n"
+            )
+            self.log.log_file.write(
+                f"Corrupted acks discarded:       {self.stats['corrupted_acks_discarded']}\n"
+            )
+            self.log.log_file.write(
+                f"PLC forward segments dropped:   {self.plc.fwd_dropped}\n"
+            )
+            self.log.log_file.write(
+                f"PLC forward segments corrupted: {self.plc.fwd_corrupted}\n"
+            )
+            self.log.log_file.write(
+                f"PLC reverse segments dropped:   {self.plc.rev_dropped}\n"
+            )
+            self.log.log_file.write(
+                f"PLC reverse segments corrupted: {self.plc.rev_corrupted}\n"
+            )
 
     def cleanup(self):
         self.running = False
-        self.stop_timer()
+        self.timer.stop()
 
-        if self.log_file:
-            self.log_file.close()
+        if self.log.log_file:
+            self.log.log_file.close()
 
         if self.sock:
             self.sock.close()
 
-    def log_segment(self, direction, status, segment: UrpSegment, length):
-        """记录日志"""
-        assert self.start_time is not None
-        elapsed = (time.time() - self.start_time) * 1000
-        segment_type = segment.get_seg_type()
-        log_entry = f"{direction:3s} {status:3s} {elapsed:7.2f} {segment_type:4s} {segment.seq_num:5d} {length:4d}\n"
-
-        with self.log_lock:
-            self.log_file.write(log_entry)
-            self.log_file.flush()
+        sys.exit(1)
 
     def _is_new_ack(self, ack_num):
         """判断是否是新的ACK"""
@@ -681,6 +628,12 @@ class Sender:
         """
         diff = (seq2 - seq1) % MAX_SEQ_NUM
         return 0 < diff <= MAX_SEQ_NUM // 2
+
+    def _print_buffer(self):
+        print("当前缓冲区: ", end="")
+        for seq_num in self.send_buffer.keys():
+            print(f"{seq_num}, ", end="")
+        print()
 
 
 # ========================================
