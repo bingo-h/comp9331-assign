@@ -12,9 +12,9 @@
 
 ### 1.1 Programming Language and Environment
 
-- **Language:** Python 3.11
-- **Development Environment:** VLAB (CSE Linux)
-- **Testing Platform:** CSE Linux machines
+- **Language:** Python 3.13
+- **Development Environment:** Laptop (i9 13980hx)
+- **Testing Platform:** VLAB (CSE Linux machines)
 
 ### 1.2 File Organization
 
