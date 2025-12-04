@@ -17,12 +17,7 @@ class Logger:
     """日志记录"""
 
     def __init__(self, file_name) -> None:
-        current_dir = Path(__file__).resolve().parent
-        log_dir = current_dir / "logs"
-
-        log_dir.mkdir(parents=True, exist_ok=True)
-
-        self.log_file = open(f"logs/{file_name}", "w")
+        self.log_file = open(f"{file_name}", "w")
         self.start_time = None
 
     def log_segment(self, direction, status, segment: UrpSegment, length):

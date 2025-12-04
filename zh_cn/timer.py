@@ -70,15 +70,15 @@ class Timer:
                 self._active = False
                 self._cancel_event.set()
 
-            if self._timer_thread and self._timer_thread.is_alive():
-                # 释放锁后等待，避免死锁
-                thread = self._timer_thread
-                self._timer_thread = None
+        if self._timer_thread and self._timer_thread.is_alive():
+            # 释放锁后等待，避免死锁
+            thread = self._timer_thread
+            self._timer_thread = None
 
-                # 在锁外等待线程
-                threading.Thread(
-                    target=lambda: thread.join(timeout=0.1), daemon=True
-                ).start()
+            # 在锁外等待线程
+            threading.Thread(
+                target=lambda: thread.join(timeout=0.1), daemon=True
+            ).start()
 
     def restart(self):
         """重启定时器"""
