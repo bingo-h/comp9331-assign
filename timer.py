@@ -64,20 +64,18 @@ class Timer:
         """Stop timer"""
         print("Timer stopped...")
 
-        with self._lock:
-            if self._active:
-                self._active = False
-                self._cancel_event.set()
+        self._active = False
+        self._cancel_event.set()
 
-            if self._timer_thread and self._timer_thread.is_alive():
-                # Wait after releasing the lock to avoid deadlock.
-                thread = self._timer_thread
-                self._timer_thread = None
+        if self._timer_thread and self._timer_thread.is_alive():
+            # Wait after releasing the lock to avoid deadlock.
+            thread = self._timer_thread
+            self._timer_thread = None
 
-                # Threads waiting outside the lock
-                threading.Thread(
-                    target=lambda: thread.join(timeout=0.1), daemon=True
-                ).start()
+            # Threads waiting outside the lock
+            threading.Thread(
+                target=lambda: thread.join(timeout=0.1), daemon=True
+            ).start()
 
     def restart(self):
         """Reset timer"""
