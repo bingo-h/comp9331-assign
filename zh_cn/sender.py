@@ -471,6 +471,7 @@ class Sender:
                     self.state = STATE_ESTABLISHED
                 with self.buffer_lock:
                     self.send_buffer.clear()  # 清空缓冲区
+                    self.base = expected_ack
 
         elif self.state == STATE_ESTABLISHED or self.state == STATE_CLOSING:
             # 检查是否是新的ACK
