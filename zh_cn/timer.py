@@ -65,9 +65,8 @@ class Timer:
         """停止定时器"""
         print("定时器停止中...")
 
-        with self._lock:
-            self._active = False
-            self._cancel_event.set()
+        self._active = False
+        self._cancel_event.set()
 
         if self._timer_thread and self._timer_thread.is_alive():
             # 释放锁后等待，避免死锁
